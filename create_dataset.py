@@ -9,7 +9,8 @@ HEADERS = {
     "X-Riot-Token": APIKey
 }
 
-
+def get_champion_from_id(champion_id):
+    pass
 def request_players_ids(tier, division, max_num, chosen_num, queue = 'RANKED_SOLO_5x5'):
     left = max_num
     page_counter = 1
@@ -31,11 +32,24 @@ def request_match_history(player_id, chosen_num):
     acc_response = requests.get(url=acc_URL, headers = HEADERS)
     if acc_response is None:
         return None
-    account_id response.json()['accountId']
+    account_id = acc_response.json()['accountId']
     #420 because it is ranked SOLO 5v5
     URL = f'https://{region}.api.riotgames.com/lol/match/v4/matchlists/by-account/{account_id}?queue=420'
-    response = requests.get(url=acc_URL, headers = HEADERS)
-    match_list = response.json()['matches']
+    response = requests.get(url=URL, headers = HEADERS).json()
+    try:
+        match_list = response['matches'] # key error
+    except KeyError:
+        return None, None
     match_ids = [m['gameId'] for m in match_list]
-    return random.sample(ids, chosen_num)
+    return random.sample(match_ids, chosen_num)
 
+def request_match_champions(match_id):
+    URL = f'https://{region}.api.riotgames.com/lol/match/v4/matches/{match_id}'
+    response = requests.get(url=URL, headers = HEADERS).json()
+    for player in response['participants']:
+        print(player['timeline']['lane'])
+        print(player['championId'])
+        print(player['teamId'])
+        print()
+
+request_match_champions("2698988077")
