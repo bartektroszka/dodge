@@ -1,6 +1,6 @@
 import requests, random
-
-APIKey = "RGAPI-83541200-22a7-4baf-9469-c90dc1667f41"
+import pandas as pd
+APIKey = "RGAPI-42abb1a5-7974-4b38-83f9-9b650bbb9b1a"
 region = "EUN1"
 version = "9.3.1"
 HEADERS = {
@@ -12,6 +12,7 @@ HEADERS = {
 
 
 def get_champion_from_id(champion_id):
+    champion_id = str(champion_id)
     url = f"http://ddragon.leagueoflegends.com/cdn/{version}/data/en_US/champion.json"
     response = requests.get(url)
     if not response:
@@ -45,24 +46,53 @@ def request_match_history(player_id, chosen_num):
     acc_response = requests.get(url=acc_URL, headers = HEADERS)
     if acc_response is None:
         return None
-    account_id = acc_response.json()['accountId']
-    #420 because it is ranked SOLO 5v5
-    URL = f'https://{region}.api.riotgames.com/lol/match/v4/matchlists/by-account/{account_id}?queue=420'
-    response = requests.get(url=URL, headers = HEADERS).json()
     try:
-        match_list = response['matches'] # key error
+        account_id = acc_response.json()['accountId']
+        #420 because it is ranked SOLO 5v5
+        URL = f'https://{region}.api.riotgames.com/lol/match/v4/matchlists/by-account/{account_id}?queue=420'
+        response = requests.get(url=URL, headers = HEADERS).json()
+        try:
+            match_list = response['matches'] # key error
+        except KeyError:
+            return None, None
+        match_ids = [m['gameId'] for m in match_list]
+        return random.sample(match_ids, chosen_num)
     except KeyError:
         return None, None
-    match_ids = [m['gameId'] for m in match_list]
-    return random.sample(match_ids, chosen_num)
 
-def request_match_champions(match_id):
+def request_match_data(match_id):
     URL = f'https://{region}.api.riotgames.com/lol/match/v4/matches/{match_id}'
     response = requests.get(url=URL, headers = HEADERS).json()
-    for player in response['participants']:
-        print(player['timeline']['lane'])
-        print(player['championId'])
-        print(player['teamId'])
-        print()
+    try:
+        participants = response['participants'] # key error
+        teams = response['teams']
+        team_1 = []
+        team_2 = []
+        won = 0
+        for player in participants:
+            if player['teamId'] == 100:
+                team_1.append([get_champion_from_id(player['championId']), player['timeline']['lane']])
+            elif player['teamId'] == 200:
+                team_2.append([get_champion_from_id(player['championId']), player['timeline']['lane']])
+            
+            if(teams[0]["teamId"]== 100):
+                if(teams[0]['win']=='Win'):
+                    won = 1
+                else:
+                    won = 2
+            elif(teams[0]["teamId"]== 200):
+                if(teams[0]['win']=='Win'):
+                    won = 2
+                else:
+                    won = 1
+        return [team_1, team_2, won]
+    except KeyError:
+        return None, None
 
-request_match_champions("2698988077")
+dataframe = []
+player_ids = request_players_ids("GOLD", "III", 100, 10, queue = 'RANKED_SOLO_5x5')
+for player_id in player_ids:
+    match_ids = request_match_history(player_id, 10)
+    for match in match_ids:
+        dataframe.append(request_match_data(match))
+print(dataframe)
