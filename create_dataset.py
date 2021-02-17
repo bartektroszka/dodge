@@ -2,7 +2,7 @@ import requests, random
 import pandas as pd
 APIKey = "RGAPI-42abb1a5-7974-4b38-83f9-9b650bbb9b1a"
 region = "EUN1"
-version = "9.3.1"
+version = "11.3.1"
 HEADERS = {
     "Accept-Language": "en-US,en;q=0.5",
     "Accept-Charset": "application/x-www-form-urlencoded; charset=UTF-8",
@@ -87,12 +87,14 @@ def request_match_data(match_id):
                     won = 1
         return [team_1, team_2, won]
     except KeyError:
-        return None, None
+        return None
 
 dataframe = []
 player_ids = request_players_ids("GOLD", "III", 100, 10, queue = 'RANKED_SOLO_5x5')
 for player_id in player_ids:
-    match_ids = request_match_history(player_id, 10)
+    match_ids = request_match_history(player_id, 7)
     for match in match_ids:
-        dataframe.append(request_match_data(match))
+        data = request_match_data(match)
+        if(data):
+            dataframe.append(data)
 print(dataframe)
