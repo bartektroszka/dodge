@@ -28,7 +28,7 @@ def get_champion_from_id(champion_id):
 def request_players_ids(tier, division, max_num, chosen_num, queue = 'RANKED_SOLO_5x5'):
     left = max_num
     page_counter = 1
-    ids = []
+    all_ids = []
     while left > 0:
         URL = f'https://{region}.api.riotgames.com/lol/league/v4/entries/{queue}/{tier}/{division}?page={page_counter}'
         response = requests.get(url=URL, headers = HEADERS)
@@ -37,9 +37,10 @@ def request_players_ids(tier, division, max_num, chosen_num, queue = 'RANKED_SOL
         response = response.json()
         response_list = filter((lambda x: not x['inactive']), response)
         ids = [player['summonerId'] for player in response]
+        all_ids += ids
         left -= len(response)
         page_counter += 1
-    return random.sample(ids, chosen_num)
+    return random.sample(all_ids, chosen_num)
 
 def request_match_history(player_id, chosen_num):   
     acc_URL = f'https://{region}.api.riotgames.com/lol/summoner/v4/summoners/{player_id}'
@@ -90,9 +91,9 @@ def request_match_data(match_id):
         return None
 
 dataframe = []
-player_ids = request_players_ids("GOLD", "III", 100, 10, queue = 'RANKED_SOLO_5x5')
+player_ids = request_players_ids("GOLD", "III", 2000, 500, queue = 'RANKED_SOLO_5x5')
 for player_id in player_ids:
-    match_ids = request_match_history(player_id, 7)
+    match_ids = request_match_history(player_id, 8)
     for match in match_ids:
         data = request_match_data(match)
         if(data):
