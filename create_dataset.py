@@ -1,8 +1,10 @@
 import requests, random
 import pandas as pd
+import roleml
+
 APIKey = "RGAPI-42abb1a5-7974-4b38-83f9-9b650bbb9b1a"
 region = "EUN1"
-version = "11.3.1"
+version = "11.4.1"
 HEADERS = {
     "Accept-Language": "en-US,en;q=0.5",
     "Accept-Charset": "application/x-www-form-urlencoded; charset=UTF-8",
@@ -62,20 +64,36 @@ def request_match_history(player_id, chosen_num):
         return None, None
 
 def request_match_data(match_id):
-    URL = f'https://{region}.api.riotgames.com/lol/match/v4/matches/{match_id}'
-    response = requests.get(url=URL, headers = HEADERS).json()
+    URL_match = f'https://{region}.api.riotgames.com/lol/match/v4/matches/{match_id}'
+    URL_timeline = f'https://{region}.api.riotgames.com/lol/match/v4/timelines/by-match/{match_id}'
+
+    timeline = requests.get(url=URL_timeline,headers = HEADERS).json()
+    match = requests.get(url=URL_match, headers = HEADERS).json()
+
+    accurateRoles = bool(timeline and match['gameDuration'] > 720) ## Flagging if accurate roles are available
+
+    if accurateRoles:
+        participants_roles = roleml.predict(match, timeline)
+
     try:
-        participants = response['participants'] # key error
-        teams = response['teams']
+        participants = match['participants'] # key error
+        teams = match['teams']
         team_1 = []
         team_2 = []
         won = 0
         for player in participants:
             if player['teamId'] == 100:
-                team_1.append([get_champion_from_id(player['championId']), player['timeline']['lane']])
+                if accurateRoles:
+                    team_1.append([get_champion_from_id(player['championId']), participants_roles[player['participantId']]])
+                else:
+                    team_1.append([get_champion_from_id(player['championId']), player['timeline']['lane']])
             elif player['teamId'] == 200:
-                team_2.append([get_champion_from_id(player['championId']), player['timeline']['lane']])
-            
+                if accurateRoles:
+                    team_2.append([get_champion_from_id(player['championId']), participants_roles[player['participantId']]])
+                else:
+                    team_2.append(
+                        [get_champion_from_id(player['championId']), player['timeline']['lane']])
+
             if(teams[0]["teamId"]== 100):
                 if(teams[0]['win']=='Win'):
                     won = 1
@@ -91,7 +109,7 @@ def request_match_data(match_id):
         return None
 
 dataframe = []
-player_ids = request_players_ids("GOLD", "III", 2000, 500, queue = 'RANKED_SOLO_5x5')
+player_ids = request_players_ids("GOLD", "III", 2000, 15, queue = 'RANKED_SOLO_5x5')
 for player_id in player_ids:
     match_ids = request_match_history(player_id, 8)
     for match in match_ids:
