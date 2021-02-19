@@ -2,7 +2,7 @@ import requests, random
 import pandas as pd
 import roleml
 
-APIKey = "RGAPI-42abb1a5-7974-4b38-83f9-9b650bbb9b1a"
+APIKey = "RGAPI-c34aadca-9d3a-40f8-bbb4-115c2b3de82f"
 region = "EUN1"
 version = "11.4.1"
 HEADERS = {
@@ -69,9 +69,11 @@ def request_match_data(match_id):
 
     timeline = requests.get(url=URL_timeline,headers = HEADERS).json()
     match = requests.get(url=URL_match, headers = HEADERS).json()
-
-    accurateRoles = bool(timeline and match['gameDuration'] > 720) ## Flagging if accurate roles are available
-
+    try:
+        accurateRoles = bool(timeline and match['gameDuration'] > 720) ## Flagging if accurate roles are available
+    except KeyError:
+            print(":(")
+            accurateRoles = False
     if accurateRoles:
         participants_roles = roleml.predict(match, timeline)
 
