@@ -1,8 +1,9 @@
 import requests, random
 import pandas as pd
 import roleml
+from csv import writer
 
-APIKey = "RGAPI-c34aadca-9d3a-40f8-bbb4-115c2b3de82f"
+APIKey = "RGAPI-343df471-1c21-4518-9e8c-fbd9d428b301"
 region = "EUN1"
 version = "11.4.1"
 HEADERS = {
@@ -34,6 +35,7 @@ def request_players_ids(tier, division, max_num, chosen_num, queue = 'RANKED_SOL
     while left > 0:
         URL = f'https://{region}.api.riotgames.com/lol/league/v4/entries/{queue}/{tier}/{division}?page={page_counter}'
         response = requests.get(url=URL, headers = HEADERS)
+        print(response)
         if response is None:
             return None
         response = response.json()
@@ -93,8 +95,7 @@ def request_match_data(match_id):
                 if accurateRoles:
                     team_2.append([get_champion_from_id(player['championId']), participants_roles[player['participantId']]])
                 else:
-                    team_2.append(
-                        [get_champion_from_id(player['championId']), player['timeline']['lane']])
+                    team_2.append([get_champion_from_id(player['championId']), player['timeline']['lane']])
 
             if(teams[0]["teamId"]== 100):
                 if(teams[0]['win']=='Win'):
@@ -110,6 +111,37 @@ def request_match_data(match_id):
     except KeyError:
         return None
 
+def convert_data_to_csv(data): #data [[game], [game]] where game is [team1, team2, won]
+    with open("data.csv", 'a+', newline='') as write_obj:
+        for game in data:
+            role_dict = {"top1" : 0,
+            "jungle1": 0,
+            "mid1": 0,
+            "bot1": 0,
+            "supp1": 0,
+            "top2": 0,
+            "jungle2": 0,
+            "mid2": 0,
+            "bot2": 0,
+            "supp2":  0
+            }
+            # Create a writer object from csv module
+            csv_writer = writer(write_obj)
+            # Add contents of list as last row in the csv file
+            team1 = game[0]
+            team2 = game[1]
+            won = game[2]
+            for role in ['top', 'jungle', 'mid', 'bot', 'supp']:
+                for player in team1:
+                    if player[1] == role:
+                        role_dict[role+"1"] = player[0]
+                for player in team2:
+                    if player[1] == role:
+                        role_dict[role+"2"] = player[0]
+       
+            csv_writer.writerow([role_dict["top1"], role_dict["jungle1"], role_dict["mid1"], role_dict["bot1"], role_dict["supp1"], role_dict["top2"], role_dict["jungle2"], role_dict["mid2"], role_dict["bot2"], role_dict["supp2"], won])
+
+
 dataframe = []
 player_ids = request_players_ids("GOLD", "III", 2000, 15, queue = 'RANKED_SOLO_5x5')
 for player_id in player_ids:
@@ -118,4 +150,4 @@ for player_id in player_ids:
         data = request_match_data(match)
         if(data):
             dataframe.append(data)
-print(dataframe)
+convert_data_to_csv(dataframe)
