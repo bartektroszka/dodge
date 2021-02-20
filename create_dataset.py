@@ -2,6 +2,7 @@ import requests, random
 import pandas as pd
 import roleml
 from csv import writer
+from ratelimit import limits, sleep_and_retry
 
 APIKey = "RGAPI-343df471-1c21-4518-9e8c-fbd9d428b301"
 region = "EUN1"
@@ -13,11 +14,19 @@ HEADERS = {
     "X-Riot-Token": APIKey
 }
 
+@sleep_and_retry
+@limits(calls=20, period=24)
+def call_api(url, headers = None):
+    response = requests.get(url = url, headers = headers)
+
+    if response.status_code != 200:
+        raise Exception(f'API response: {response.status_code}')
+    return response
 
 def get_champion_from_id(champion_id):
     champion_id = str(champion_id)
     url = f"http://ddragon.leagueoflegends.com/cdn/{version}/data/en_US/champion.json"
-    response = requests.get(url)
+    response = call_api(url)
     if not response:
         return None
     champion_list = response.json()['data']
@@ -34,7 +43,7 @@ def request_players_ids(tier, division, max_num, chosen_num, queue = 'RANKED_SOL
     all_ids = []
     while left > 0:
         URL = f'https://{region}.api.riotgames.com/lol/league/v4/entries/{queue}/{tier}/{division}?page={page_counter}'
-        response = requests.get(url=URL, headers = HEADERS)
+        response = call_api(url=URL, headers = HEADERS)
         print(response)
         if response is None:
             return None
@@ -48,14 +57,14 @@ def request_players_ids(tier, division, max_num, chosen_num, queue = 'RANKED_SOL
 
 def request_match_history(player_id, chosen_num):   
     acc_URL = f'https://{region}.api.riotgames.com/lol/summoner/v4/summoners/{player_id}'
-    acc_response = requests.get(url=acc_URL, headers = HEADERS)
+    acc_response = call_api(url=acc_URL, headers = HEADERS)
     if acc_response is None:
         return None
     try:
         account_id = acc_response.json()['accountId']
         #420 because it is ranked SOLO 5v5
         URL = f'https://{region}.api.riotgames.com/lol/match/v4/matchlists/by-account/{account_id}?queue=420'
-        response = requests.get(url=URL, headers = HEADERS).json()
+        response = call_api(url=URL, headers = HEADERS).json()
         try:
             match_list = response['matches'] # key error
         except KeyError:
@@ -69,14 +78,20 @@ def request_match_data(match_id):
     URL_match = f'https://{region}.api.riotgames.com/lol/match/v4/matches/{match_id}'
     URL_timeline = f'https://{region}.api.riotgames.com/lol/match/v4/timelines/by-match/{match_id}'
 
-    timeline = requests.get(url=URL_timeline,headers = HEADERS).json()
-    match = requests.get(url=URL_match, headers = HEADERS).json()
+    timeline_response = call_api(url=URL_timeline,headers = HEADERS)
+    match_response = call_api(url=URL_match, headers = HEADERS)
+
+    match = match_response.json()
+    timeline = timeline_response.json()
+
     try:
-        accurateRoles = bool(timeline and match['gameDuration'] > 720) ## Flagging if accurate roles are available
+        accurateRoles = bool(timeline and match['gameDuration'] > 720)  ## Flagging if accurate roles are available
     except KeyError:
-            print(":(")
-            accurateRoles = False
+        print(":(")
+        accurateRoles = False
+
     if accurateRoles:
+        print(":)")
         participants_roles = roleml.predict(match, timeline)
 
     try:
