@@ -127,7 +127,7 @@ def request_match_data(match_id):
         return None
 
 def convert_data_to_csv(data): #data [[game], [game]] where game is [team1, team2, won]
-    with open("data.csv", 'w+', newline='') as write_obj:
+    with open("data.csv", 'a+', newline='') as write_obj:
         for game in data:
             role_dict = {"top1" : 0,
             "jungle1": 0,
