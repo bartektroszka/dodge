@@ -81,11 +81,11 @@ def request_match_data(match_id):
     URL_timeline = f'https://{region}.api.riotgames.com/lol/match/v4/timelines/by-match/{match_id}'
     timeline_response = call_api(url=URL_timeline,headers = HEADERS)
     match_response = call_api(url=URL_match, headers = HEADERS)
-    match = match_response.json()
-    timeline = timeline_response.json()
     if not timeline_response or not match_response:
         return None
     try:
+        match = match_response.json()
+        timeline = timeline_response.json()
         accurateRoles = bool(timeline and match['gameDuration'] > 720)  ## Flagging if accurate roles are available
     except KeyError:
         accurateRoles = False
@@ -158,12 +158,13 @@ def convert_data_to_csv(data): #data [[game], [game]] where game is [team1, team
 
 
 dataframe = []
-player_ids = request_players_ids("GOLD", "III", 2000, 5, queue = 'RANKED_SOLO_5x5')
+player_ids = request_players_ids("GOLD", "III", 2000, 20, queue = 'RANKED_SOLO_5x5')
 for player_id in player_ids:
-    match_ids = request_match_history(player_id, 5)
+    match_ids = request_match_history(player_id, 20)
     for match in match_ids:
         data = request_match_data(match)
         if(data):
             dataframe.append(data)
+            print(data)
 
 convert_data_to_csv(dataframe)
