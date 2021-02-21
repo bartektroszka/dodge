@@ -127,7 +127,9 @@ def request_match_data(match_id):
         return None
 
 def convert_data_to_csv(data): #data [[game], [game]] where game is [team1, team2, won]
-    with open("data.csv", 'a+', newline='') as write_obj:
+    with open("data.csv", 'w+', newline='') as write_obj:
+        csv_writer = writer(write_obj)
+        csv_writer.writerow(['top1','jungle1', 'mid1', 'bot1', 'supp1', 'top2', 'jungle2', 'mid2', 'bot2', 'supp2', 'won'])
         for game in data:
             role_dict = {"top1" : 0,
             "jungle1": 0,
@@ -141,7 +143,6 @@ def convert_data_to_csv(data): #data [[game], [game]] where game is [team1, team
             "supp2":  0
             }
             # Create a writer object from csv module
-            csv_writer = writer(write_obj)
             # Add contents of list as last row in the csv file
             team1 = game[0]
             team2 = game[1]
@@ -153,18 +154,17 @@ def convert_data_to_csv(data): #data [[game], [game]] where game is [team1, team
                 for player in team2:
                     if player[1] == role:
                         role_dict[role+"2"] = player[0]
-       
-            csv_writer.writerow([role_dict["top1"], role_dict["jungle1"], role_dict["mid1"], role_dict["bot1"], role_dict["supp1"], role_dict["top2"], role_dict["jungle2"], role_dict["mid2"], role_dict["bot2"], role_dict["supp2"], won])
+            if not 0 in role_dict.values():
+                csv_writer.writerow([role_dict["top1"], role_dict["jungle1"], role_dict["mid1"], role_dict["bot1"], role_dict["supp1"], role_dict["top2"], role_dict["jungle2"], role_dict["mid2"], role_dict["bot2"], role_dict["supp2"], won])
 
 
 dataframe = []
-player_ids = request_players_ids("GOLD", "III", 2000, 20, queue = 'RANKED_SOLO_5x5')
+player_ids = request_players_ids("GOLD", "III", 5000, 30, queue = 'RANKED_SOLO_5x5')
 for player_id in player_ids:
-    match_ids = request_match_history(player_id, 20)
+    match_ids = request_match_history(player_id, 10)
     for match in match_ids:
         data = request_match_data(match)
         if(data):
             dataframe.append(data)
-            print(data)
 
 convert_data_to_csv(dataframe)
