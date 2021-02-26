@@ -2,7 +2,7 @@ import requests, random
 import pandas as pd
 import roleml
 from csv import writer
-from ratelimit import limits, sleep_and_retry
+import time
 
 APIKey = "RGAPI-10d5222d-4653-4d28-bd8b-629515e09630"
 region = "EUN1"
@@ -14,14 +14,17 @@ HEADERS = {
     "X-Riot-Token": APIKey
 }
 
-@sleep_and_retry
-@limits(calls=20, period=24)
 def call_api(url, headers = None):
     response = requests.get(url = url, headers = headers)
 
-    if response.status_code != 200:
-        print(response.status_code)
-        return None
+    if response.status_code == 429:
+        time.sleep(int(response.headers["Retry-After"]))
+        time.sleep(2)
+        response = requests.get(url=url, headers=headers)
+
+    elif response.status_code != 200:
+        raise Exception(f'API response: {response.status_code}')
+
     return response
 
 def get_champion_from_id(champion_id):
