@@ -2,7 +2,8 @@ import requests, random
 import pandas as pd
 import roleml
 from csv import writer
-from ratelimit import limits, sleep_and_retry
+from timeit import default_timer as timer
+import time
 
 APIKey = "RGAPI-343df471-1c21-4518-9e8c-fbd9d428b301"
 region = "EUN1"
@@ -14,13 +15,17 @@ HEADERS = {
     "X-Riot-Token": APIKey
 }
 
-@sleep_and_retry
-@limits(calls=20, period=24)
 def call_api(url, headers = None):
     response = requests.get(url = url, headers = headers)
 
-    if response.status_code != 200:
+    if response.status_code == 429:
+        time.sleep(int(response.headers["Retry-After"]))
+        time.sleep(2)
+        response = requests.get(url=url, headers=headers)
+
+    elif response.status_code != 200:
         raise Exception(f'API response: {response.status_code}')
+
     return response
 
 def get_champion_from_id(champion_id):
@@ -64,7 +69,9 @@ def request_match_history(player_id, chosen_num):
         account_id = acc_response.json()['accountId']
         #420 because it is ranked SOLO 5v5
         URL = f'https://{region}.api.riotgames.com/lol/match/v4/matchlists/by-account/{account_id}?queue=420'
-        response = call_api(url=URL, headers = HEADERS).json()
+        response = call_api(url=URL, headers = HEADERS)
+        print(response)
+        response = response.json()
         try:
             match_list = response['matches'] # key error
         except KeyError:
@@ -91,9 +98,7 @@ def request_match_data(match_id):
         accurateRoles = False
 
     if accurateRoles:
-        print(":)")
         participants_roles = roleml.predict(match, timeline)
-
     try:
         participants = match['participants'] # key error
         teams = match['teams']
@@ -158,11 +163,20 @@ def convert_data_to_csv(data): #data [[game], [game]] where game is [team1, team
 
 
 dataframe = []
-player_ids = request_players_ids("GOLD", "III", 2000, 15, queue = 'RANKED_SOLO_5x5')
+player_ids = request_players_ids("GOLD", "III", 2000, 200, queue = 'RANKED_SOLO_5x5')
+whole_start = timer()
+i=1
+players_nr = len(player_ids)
 for player_id in player_ids:
     match_ids = request_match_history(player_id, 8)
     for match in match_ids:
+        start_match = timer()
         data = request_match_data(match)
+        end_match = timer()
+        print(f"{end_match - start_match}s match processing:)")
         if(data):
             dataframe.append(data)
+    end_player = timer()
+    print(f"{end_player - whole_start}s {i}/{players_nr} player processing:)")
+    i += 1
 convert_data_to_csv(dataframe)
